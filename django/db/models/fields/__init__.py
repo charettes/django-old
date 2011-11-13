@@ -1098,7 +1098,7 @@ class NullBooleanField(Field):
         return super(NullBooleanField, self).formfield(**defaults)
 
 class PositiveIntegerField(IntegerField):
-    description = _("Integer")
+    description = _("Positive integer")
 
     def get_internal_type(self):
         return "PositiveIntegerField"
@@ -1109,7 +1109,7 @@ class PositiveIntegerField(IntegerField):
         return super(PositiveIntegerField, self).formfield(**defaults)
 
 class PositiveSmallIntegerField(IntegerField):
-    description = _("Integer")
+    description = _("Positive small integer")
     def get_internal_type(self):
         return "PositiveSmallIntegerField"
 
@@ -1119,7 +1119,7 @@ class PositiveSmallIntegerField(IntegerField):
         return super(PositiveSmallIntegerField, self).formfield(**defaults)
 
 class SlugField(CharField):
-    description = _("String (up to %(max_length)s)")
+    description = _("Slug (up to %(max_length)s)")
     def __init__(self, *args, **kwargs):
         kwargs['max_length'] = kwargs.get('max_length', 50)
         # Set db_index=True unless it's been set manually.
@@ -1136,7 +1136,7 @@ class SlugField(CharField):
         return super(SlugField, self).formfield(**defaults)
 
 class SmallIntegerField(IntegerField):
-    description = _("Integer")
+    description = _("Small integer")
 
     def get_internal_type(self):
         return "SmallIntegerField"
