@@ -17,6 +17,11 @@ class Person(models.Model):
     def __unicode__(self):
         return u'%s %s' % (self.first_name, self.last_name)
 
+
+class DefaultPerson(models.Model):
+    first_name = models.CharField(max_length=100, default="Anonymous")
+
+
 class ManualPrimaryKeyTest(models.Model):
     id = models.IntegerField(primary_key=True)
     data = models.CharField(max_length=100)

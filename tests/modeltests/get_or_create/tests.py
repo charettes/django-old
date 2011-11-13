@@ -5,7 +5,7 @@ from datetime import date
 from django.db import IntegrityError
 from django.test import TestCase
 
-from .models import Person, ManualPrimaryKeyTest
+from .models import Person, DefaultPerson, ManualPrimaryKeyTest
 
 
 class GetOrCreateTests(TestCase):
@@ -52,3 +52,10 @@ class GetOrCreateTests(TestCase):
             ManualPrimaryKeyTest.objects.get_or_create, id=1, data="Different"
         )
         self.assertEqual(ManualPrimaryKeyTest.objects.get(id=1).data, "Original")
+
+    def test_get_or_create_empty(self):
+        try:
+            DefaultPerson.objects.get_or_create()
+        except AssertionError:
+            self.fail("If all the attributes on a model have defaults, we "
+                      "shouldn't need to pass any arguments.")
