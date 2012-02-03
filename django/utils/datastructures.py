@@ -331,8 +331,7 @@ class MultiValueDict(dict):
 
     def appendlist(self, key, value):
         """Appends an item to the internal list associated with key."""
-        self.setlistdefault(key, [])
-        super(MultiValueDict, self).__setitem__(key, self.getlist(key) + [value])
+        super(MultiValueDict, self).setdefault(key, []).append(value)
 
     def items(self):
         """
