@@ -17,9 +17,10 @@ class ContentTypeManager(models.Manager):
 
     def _get_opts(self, model, proxy_for_model=True):
         opts = model._meta
-        while proxy_for_model and opts.proxy:
-            model = opts.proxy_for_model
-            opts = model._meta
+        if proxy_for_model:
+            while opts.proxy:
+                model = opts.proxy_for_model
+                opts = model._meta
         return opts
 
     def _get_from_cache(self, opts):
