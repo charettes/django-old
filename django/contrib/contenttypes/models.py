@@ -15,9 +15,9 @@ class ContentTypeManager(models.Manager):
             ct = self.get(app_label=app_label, model=model)
         return ct
 
-    def _get_opts(self, model, proxy_for_model=True):
+    def _get_opts(self, model, follow_proxy=True):
         opts = model._meta
-        if proxy_for_model:
+        if follow_proxy:
             while opts.proxy:
                 model = opts.proxy_for_model
                 opts = model._meta
@@ -27,13 +27,13 @@ class ContentTypeManager(models.Manager):
         key = (opts.app_label, opts.object_name.lower())
         return self.__class__._cache[self.db][key]
 
-    def get_for_model(self, model, proxy_for_model=True):
+    def get_for_model(self, model, follow_proxy=True):
         """
         Returns the ContentType object for a given model, creating the
         ContentType if necessary. Lookups are cached so that subsequent lookups
         for the same model don't hit the database.
         """
-        opts = self._get_opts(model, proxy_for_model)
+        opts = self._get_opts(model, follow_proxy)
         try:
             ct = self._get_from_cache(opts)
         except KeyError:
@@ -54,14 +54,14 @@ class ContentTypeManager(models.Manager):
         Given *models, returns a dictionary mapping {model: content_type}.
         """
         # Final results
-        proxy_for_model = kwargs.get('proxy_for_model', True)
+        follow_proxy = kwargs.get('follow_proxy', True)
         results = {}
         # models that aren't already in the cache
         needed_app_labels = set()
         needed_models = set()
         needed_opts = set()
         for model in models:
-            opts = self._get_opts(model, proxy_for_model)
+            opts = self._get_opts(model, follow_proxy)
             try:
                 ct = self._get_from_cache(opts)
             except KeyError:

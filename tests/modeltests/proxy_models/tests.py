@@ -220,7 +220,7 @@ class ProxyModelTests(TestCase):
         ctype = ContentType.objects.get_for_model
         self.assertTrue(ctype(Person) is ctype(OtherPerson))
         self.assertFalse(ctype(Person) is ctype(OtherPerson,
-                                                proxy_for_model=False))
+                                                follow_proxy=False))
 
     def test_user_userproxy_userproxyproxy(self):
         User.objects.create(name='Bruce')
