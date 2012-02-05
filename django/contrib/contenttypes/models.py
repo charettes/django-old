@@ -17,7 +17,7 @@ class ContentTypeManager(models.Manager):
 
     def _get_opts(self, model):
         opts = model._meta
-        while opts.proxy:
+        while model._deferred:
             model = opts.proxy_for_model
             opts = model._meta
         return opts
