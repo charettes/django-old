@@ -16,10 +16,12 @@ class ContentTypeManager(models.Manager):
         return ct
 
     def _get_opts(self, model):
-        opts = model._meta
         if model._deferred:
-            opts = model.__class__.__bases__[0]._meta
-        return opts
+            # Options must be retreived from the base class for deferred models
+            # since they're really just dynamic wrappers and should not have 
+            # their own conten-type.
+            model = model.__class__.__bases__[0]
+        return model._meta
 
     def _get_from_cache(self, opts):
         key = (opts.app_label, opts.object_name.lower())
