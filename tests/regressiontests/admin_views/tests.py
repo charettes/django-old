@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import with_statement, absolute_import
 
+import os
 import re
 import datetime
 import urlparse
@@ -573,6 +574,38 @@ class AdminViewBasicTest(TestCase):
         except SuspiciousOperation:
             self.fail("Filters should be allowed if they are defined on a ForeignKey pointing to this model")
 
+
+class AdminViewFormUrlTest(TestCase):
+    urls = "regressiontests.admin_views.urls"
+    fixtures = ["admin-views-users.xml"]
+    urlbit = "admin3"
+
+    def setUp(self):
+        self.client.login(username='super', password='secret')
+
+    def tearDown(self):
+        self.client.logout()
+
+    def testChangeFormUrlHasCorrectValue(self):
+        """
+        Tests whether change_view has form_url in request.context
+        """
+        response = self.client.get('/test_admin/%s/admin_views/section/1/' % self.urlbit)
+        self.assertTrue('form_url' in response.context, msg='form_url not present in response.context')
+        self.assertEqual(response.context['form_url'], 'pony')
+
+    def test_filter_with_custom_template(self):
+        """
+        Ensure that one can use a custom template to render an admin filter.
+        Refs #17515.
+        """
+        template_dirs = settings.TEMPLATE_DIRS + (
+            os.path.join(os.path.dirname(__file__), 'templates'),)
+        with self.settings(TEMPLATE_DIRS=template_dirs):
+            response = self.client.get("/test_admin/admin/admin_views/color2/")
+            self.assertTrue('custom_filter_template.html' in [t.name for t in response.templates])
+
+
 class AdminJavaScriptTest(AdminViewBasicTest):
     urls = "regressiontests.admin_views.urls"
 
@@ -596,6 +629,40 @@ class AdminJavaScriptTest(AdminViewBasicTest):
             response,
             '<script type="text/javascript">document.getElementById("id_start_date_0").focus();</script>'
         )
+
+
+    def test_js_minified_only_if_debug_is_false(self):
+        """
+        Ensure that the minified versions of the JS files are only used when
+        DEBUG is False.
+        Refs #17521.
+        """
+        with override_settings(DEBUG=False):
+            response = self.client.get(
+                '/test_admin/%s/admin_views/section/add/' % self.urlbit)
+            self.assertNotContains(response, 'jquery.js')
+            self.assertContains(response, 'jquery.min.js')
+            self.assertNotContains(response, 'prepopulate.js')
+            self.assertContains(response, 'prepopulate.min.js')
+            self.assertNotContains(response, 'actions.js')
+            self.assertContains(response, 'actions.min.js')
+            self.assertNotContains(response, 'collapse.js')
+            self.assertContains(response, 'collapse.min.js')
+            self.assertNotContains(response, 'inlines.js')
+            self.assertContains(response, 'inlines.min.js')
+        with override_settings(DEBUG=True):
+            response = self.client.get(
+                '/test_admin/%s/admin_views/section/add/' % self.urlbit)
+            self.assertContains(response, 'jquery.js')
+            self.assertNotContains(response, 'jquery.min.js')
+            self.assertContains(response, 'prepopulate.js')
+            self.assertNotContains(response, 'prepopulate.min.js')
+            self.assertContains(response, 'actions.js')
+            self.assertNotContains(response, 'actions.min.js')
+            self.assertContains(response, 'collapse.js')
+            self.assertNotContains(response, 'collapse.min.js')
+            self.assertContains(response, 'inlines.js')
+            self.assertNotContains(response, 'inlines.min.js')
 
 
 class SaveAsTests(TestCase):
@@ -2892,6 +2959,11 @@ class ReadonlyTest(TestCase):
         response = self.client.get('/test_admin/admin/admin_views/pizza/add/')
         self.assertEqual(response.status_code, 200)
 
+    def test_user_password_change_limited_queryset(self):
+        su = User.objects.filter(is_superuser=True)[0]
+        response = self.client.get('/test_admin/admin2/auth/user/%s/password/' % su.pk)
+        self.assertEquals(response.status_code, 404)
+
 
 class RawIdFieldsTest(TestCase):
     urls = "regressiontests.admin_views.urls"
@@ -3018,6 +3090,12 @@ class UserAdminTest(TestCase):
         with self.assertNumQueries(8):
             response = self.client.get('/test_admin/admin/auth/user/%s/' % u.pk)
             self.assertEqual(response.status_code, 200)
+
+    def test_form_url_present_in_context(self):
+        u = User.objects.all()[0]
+        response = self.client.get('/test_admin/admin3/auth/user/%s/password/' % u.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['form_url'], 'pony')
 
 
 class GroupAdminTest(TestCase):
@@ -3350,3 +3428,31 @@ class AdminCustomSaveRelatedTests(TestCase):
 
         self.assertEqual('Josh Stone', Parent.objects.latest('id').name)
         self.assertEqual([u'Catherine Stone', u'Paul Stone'], children_names)
+
+
+class AdminViewLogoutTest(TestCase):
+    urls = "regressiontests.admin_views.urls"
+    fixtures = ['admin-views-users.xml']
+
+    def setUp(self):
+        self.client.login(username='super', password='secret')
+
+    def tearDown(self):
+        self.client.logout()
+
+    def test_client_logout_url_can_be_used_to_login(self):
+        response = self.client.get('/test_admin/admin/logout/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.template_name, 'registration/logged_out.html')
+        self.assertEqual(response.request['PATH_INFO'], '/test_admin/admin/logout/')
+
+        # we are now logged out
+        response = self.client.get('/test_admin/admin/logout/')
+        self.assertEqual(response.status_code, 302)  # we should be redirected to the login page.
+
+        # follow the redirect and test results.
+        response = self.client.get('/test_admin/admin/logout/', follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.template_name, 'admin/login.html')
+        self.assertEqual(response.request['PATH_INFO'], '/test_admin/admin/')
+        self.assertContains(response, '<input type="hidden" name="next" value="/test_admin/admin/" />')

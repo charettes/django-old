@@ -5,12 +5,12 @@
 # The *_FORMAT strings use the Django date format syntax,
 # see http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 DATE_FORMAT = 'j. F Y'
-TIME_FORMAT = 'G:i:s'
-DATETIME_FORMAT = 'j. F Y G:i:s'
+TIME_FORMAT = 'H:i:s'
+DATETIME_FORMAT = 'j. F Y H:i:s'
 YEAR_MONTH_FORMAT = 'F Y'
 MONTH_DAY_FORMAT = 'j. F'
 SHORT_DATE_FORMAT = 'd.m.Y'
-SHORT_DATETIME_FORMAT = 'd.m.Y G:i:s'
+SHORT_DATETIME_FORMAT = 'd.m.Y H:i:s'
 FIRST_DAY_OF_WEEK = 1 # Monday
 
 # The *_INPUT_FORMATS strings use the Python strftime format syntax,
@@ -32,6 +32,12 @@ DATETIME_INPUT_FORMATS = (
     '%Y-%m-%d %H:%M',       # '2006-10-25 14:30'
     '%Y-%m-%d',             # '2006-10-25'
 )
+
+# these are the separators for non-monetary numbers. For monetary numbers, 
+# the DECIMAL_SEPARATOR is a . (decimal point) and the THOUSAND_SEPARATOR is a
+# ' (single quote).
+# For details, please refer to http://www.bk.admin.ch/dokumentation/sprachen/04915/05016/index.html?lang=de
+# (in German) and the documentation
 DECIMAL_SEPARATOR = ','
-THOUSAND_SEPARATOR = u' ' # non-breaking space
+THOUSAND_SEPARATOR = u' '
 NUMBER_GROUPING = 3

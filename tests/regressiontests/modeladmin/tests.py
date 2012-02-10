@@ -1,11 +1,11 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, with_statement
 
 from datetime import date
 
 from django import forms
 from django.conf import settings
 from django.contrib.admin.options import (ModelAdmin, TabularInline,
-    HORIZONTAL, VERTICAL)
+     InlineModelAdmin, HORIZONTAL, VERTICAL)
 from django.contrib.admin.sites import AdminSite
 from django.contrib.admin.validation import validate
 from django.contrib.admin.widgets import AdminDateWidget, AdminRadioSelect
@@ -15,6 +15,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.forms.models import BaseModelFormSet
 from django.forms.widgets import Select
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.utils import unittest
 
 from .models import Band, Concert, ValidationTestModel, ValidationTestInlineModel
