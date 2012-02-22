@@ -4,7 +4,7 @@ import copy
 
 from django.conf import compat_patch_logging_config
 from django.core import mail
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.test.utils import override_settings
 from django.utils.log import CallbackFilter, RequireDebugFalse, getLogger
 
@@ -124,6 +124,16 @@ class CallbackFilterTest(TestCase):
 
 class AdminEmailHandlerTest(TestCase):
 
+    def get_admin_email_handler(self, logger):
+        # Inspired from regressiontests/views/views.py: send_log()
+        # ensuring the AdminEmailHandler does not get filtered out
+        # even with DEBUG=True.
+        admin_email_handler = [
+            h for h in logger.handlers
+            if h.__class__.__name__ == "AdminEmailHandler"
+            ][0]
+        return admin_email_handler
+
     @override_settings(
             ADMINS=(('whatever admin', 'admin@example.com'),),
             EMAIL_SUBJECT_PREFIX='-SuperAwesomeSubject-'
@@ -134,29 +144,106 @@ class AdminEmailHandlerTest(TestCase):
         setting are used to compose the email subject.
         Refs #16736.
         """
-
         message = "Custom message that says '%s' and '%s'"
         token1 = 'ping'
         token2 = 'pong'
 
         logger = getLogger('django.request')
-        # Inspired from regressiontests/views/views.py: send_log()
-        # ensuring the AdminEmailHandler does not get filtered out
-        # even with DEBUG=True.
-        admin_email_handler = [
-            h for h in logger.handlers
-            if h.__class__.__name__ == "AdminEmailHandler"
-            ][0]
+        admin_email_handler = self.get_admin_email_handler(logger)
         # Backup then override original filters
         orig_filters = admin_email_handler.filters
-        admin_email_handler.filters = []
+        try:
+            admin_email_handler.filters = []
 
-        logger.error(message, token1, token2)
+            logger.error(message, token1, token2)
+
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertEqual(mail.outbox[0].to, ['admin@example.com'])
+            self.assertEqual(mail.outbox[0].subject,
+                             "-SuperAwesomeSubject-ERROR: Custom message that says 'ping' and 'pong'")
+        finally:
+            # Restore original filters
+            admin_email_handler.filters = orig_filters
+
+    @override_settings(
+            ADMINS=(('whatever admin', 'admin@example.com'),),
+            EMAIL_SUBJECT_PREFIX='-SuperAwesomeSubject-',
+            INTERNAL_IPS=('127.0.0.1',),
+        )
+    def test_accepts_args_and_request(self):
+        """
+        Ensure that the subject is also handled if being
+        passed a request object.
+        """
+        message = "Custom message that says '%s' and '%s'"
+        token1 = 'ping'
+        token2 = 'pong'
+
+        logger = getLogger('django.request')
+        admin_email_handler = self.get_admin_email_handler(logger)
+        # Backup then override original filters
+        orig_filters = admin_email_handler.filters
+        try:
+            admin_email_handler.filters = []
+            rf = RequestFactory()
+            request = rf.get('/')
+            logger.error(message, token1, token2,
+                extra={
+                    'status_code': 403,
+                    'request': request,
+                }
+            )
+            self.assertEqual(len(mail.outbox), 1)
+            self.assertEqual(mail.outbox[0].to, ['admin@example.com'])
+            self.assertEqual(mail.outbox[0].subject,
+                             "-SuperAwesomeSubject-ERROR (internal IP): Custom message that says 'ping' and 'pong'")
+        finally:
+            # Restore original filters
+            admin_email_handler.filters = orig_filters
+
+    @override_settings(
+            ADMINS=(('admin', 'admin@example.com'),),
+            EMAIL_SUBJECT_PREFIX='',
+            DEBUG=False,
+        )
+    def test_subject_accepts_newlines(self):
+        """
+        Ensure that newlines in email reports' subjects are escaped to avoid
+        AdminErrorHandler to fail.
+        Refs #17281.
+        """
+        message = u'Message \r\n with newlines'
+        expected_subject = u'ERROR: Message \\r\\n with newlines'
+
+        self.assertEqual(len(mail.outbox), 0)
+
+        logger = getLogger('django.request')
+        logger.error(message)
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ['admin@example.com'])
-        self.assertEqual(mail.outbox[0].subject,
-                         "-SuperAwesomeSubject-ERROR: Custom message that says 'ping' and 'pong'")
+        self.assertFalse('\n' in mail.outbox[0].subject)
+        self.assertFalse('\r' in mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].subject, expected_subject)
 
-        # Restore original filters
-        admin_email_handler.filters = orig_filters
+    @override_settings(
+            ADMINS=(('admin', 'admin@example.com'),),
+            EMAIL_SUBJECT_PREFIX='',
+            DEBUG=False,
+        )
+    def test_truncate_subject(self):
+        """
+        RFC 2822's hard limit is 998 characters per line.
+        So, minus "Subject: ", the actual subject must be no longer than 989
+        characters.
+        Refs #17281.
+        """
+        message = 'a' * 1000
+        expected_subject = 'ERROR: aa' + 'a' * 980
+
+        self.assertEqual(len(mail.outbox), 0)
+
+        logger = getLogger('django.request')
+        logger.error(message)
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, expected_subject)

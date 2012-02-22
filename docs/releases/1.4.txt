@@ -39,14 +39,13 @@ What's new in Django 1.4
 Support for in-browser testing frameworks
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Django 1.4 supports integration with in-browser testing frameworks such
-as Selenium_ or Windmill_. The new :class:`django.test.LiveServerTestCase`
-base class lets you test the interactions between your site's front and
-back ends more comprehensively. See the
+Django 1.4 supports integration with in-browser testing frameworks like
+Selenium_. The new :class:`django.test.LiveServerTestCase` base class lets you
+test the interactions between your site's front and back ends more
+comprehensively. See the
 :class:`documentation<django.test.LiveServerTestCase>` for more details and
 concrete examples.
 
-.. _Windmill: http://www.getwindmill.com/
 .. _Selenium: http://seleniumhq.org/
 
 ``SELECT FOR UPDATE`` support
@@ -171,6 +170,13 @@ Cookie-based session backend
 Django 1.4 introduces a cookie-based session backend that uses the tools for
 :doc:`cryptographic signing </topics/signing>` to store the session data in
 the client's browser.
+
+.. warning::
+
+    Session data is signed and validated by the server, but it's not
+    encrypted. This means a user can view any data stored in the
+    session but cannot change it. Please read the documentation for
+    further clarification before using this backend.
 
 See the :ref:`cookie-based session backend <cookie-session-backend>` docs for
 more information.
@@ -490,6 +496,28 @@ the ``html=True`` flag with
 client's response contains a given HTML fragment. See the :ref:`assertion
 documentation<assertions>` for more.
 
+Two new date format strings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two new :tfilter:`date` formats were added for use in template filters,
+template tags and :ref:`format-localization`:
+
+- ``e`` -- the name of the timezone of the given datetime object
+- ``o`` -- the ISO 8601 year number
+
+Please make sure to update your :ref:`custom format files
+<custom-format-files>` if they contain either ``e`` or ``o`` in a format
+string. For example a Spanish localization format previously only escaped the
+``d`` format character::
+
+  DATE_FORMAT = r'j \de F \de Y'
+
+But now it needs to also escape ``e`` and ``o``::
+
+  DATE_FORMAT = r'j \d\e F \d\e Y'
+
+For more information, see the :tfilter:`date` documentation.
+
 Minor features
 ~~~~~~~~~~~~~~
 
@@ -523,6 +551,11 @@ Django 1.4 also includes several smaller improvements worth noting:
   setting the value of :data:`django.conf.urls.handler403`. See the
   documentation about :ref:`the 403 (HTTP Forbidden) view<http_forbidden_view>`
   for more information.
+
+* The :djadmin:`makemessages` command uses a new and more accurate lexer,
+  `JsLex`_, for extracting translatable strings from JavaScript files.
+
+.. _JsLex: https://bitbucket.org/ned/jslex
 
 * The :ttag:`trans` template tag now takes an optional ``as`` argument to
   be able to retrieve a translation string without displaying it but setting
@@ -993,9 +1026,21 @@ Output of :djadmin:`manage.py help <help>`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :djadmin:`manage.py help <help>` now groups available commands by application.
-If you depended on its output, for instance if you parsed it, you must update
-your scripts. To obtain the list of all available management commands in a
-script, you can use :djadmin:`manage.py help --commands <help>` instead.
+If you depended on the output of this command -- if you parsed it, for example
+-- then you'll need to update your code. To get a list of all available
+management commands in a script, use
+:djadmin:`manage.py help --commands <help>` instead.
+
+``extends`` template tag
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Previously, the :ttag:`extends` tag used a buggy method of parsing arguments,
+which could lead to it erroneously considering an argument as a string literal
+when it wasn't.  It now utilises ``parser.compile_filter`` like other tags.
+
+The internals of the tag aren't part of the official stable API, but in the
+interests of full disclosure, the ``ExtendsNode.__init__`` definition has
+changed which may break any custom tags that use this node class.
 
 Features deprecated in 1.4
 ==========================
@@ -1151,17 +1196,14 @@ This attribute was confusingly named ``HttpRequest.raw_post_data``, but it
 actually provided the body of the HTTP request. It's been renamed to
 ``HttpRequest.body``, and ``HttpRequest.raw_post_data`` has been deprecated.
 
-``django.contrib.sitemaps`` bugfix with potential performance implications
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``django.contrib.sitemaps`` bug fix with potential performance implications
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In previous versions the Paginator objects used in sitemap classes were
-cached and could result in stale sitemap indexes. Removing this cache causes
-new Paginator objects to be created and the
+In previous versions, ``Paginator`` objects used in sitemap classes were
+cached, which could result in stale site maps. We've removed the caching, so
+each request to a site map now creates a new Paginator object and calls the
 :attr:`~django.contrib.sitemaps.Sitemap.items()` method of the
-:class:`~django.contrib.sitemaps.Sitemap` subclass to be called during every
-sitemap-related request.
-
-If the :attr:`django.contrib.sitemaps.Sitemap.items()` method returns a
-``QuerySet`` its length will be evaluated which may lead to extra database
-queries. To mitigate the performance impact consider using the :doc:`caching
-framework </topics/cache>`.
+:class:`~django.contrib.sitemaps.Sitemap` subclass. Depending on what your
+``items()`` method is doing, this may have a negative performance impact.
+To mitigate the performance impact, consider using the :doc:`caching
+framework </topics/cache>` within your ``Sitemap`` subclass.

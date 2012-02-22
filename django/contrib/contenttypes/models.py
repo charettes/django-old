@@ -13,14 +13,16 @@ class ContentTypeManager(models.Manager):
             ct = self.__class__._cache[self.db][(app_label, model)]
         except KeyError:
             ct = self.get(app_label=app_label, model=model)
+            self._add_to_cache(self.db, ct)
         return ct
 
     def _get_opts(self, model):
         if model._deferred:
-            # Options must be retreived from the base class for deferred models
-            # since they're really just dynamic wrappers and should not have 
-            # their own conten-type.
-            model = model.__class__.__bases__[0]
+            # Deferred models shouldn't have their own content type since
+            # they're only dynamic wrappers to allow field deferring.
+            # We make sure to retreive options from the model they are proxying
+            # which can also be a proxy.
+            model = model._meta.proxy_for_model
         return model._meta
 
     def _get_from_cache(self, opts):
