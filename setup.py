@@ -36,7 +36,7 @@ def fullsplit(path, result=None):
         return result
     return fullsplit(head, [tail] + result)
 
-# Tell distutils to put the data_files in platform-specific installation
+# Tell distutils not to put the data_files in platform-specific installation
 # locations. See here for an explanation:
 # http://groups.google.com/group/comp.lang.python/browse_thread/thread/35ec7b2fed36eaec/2105ee4d9e8042cb
 for scheme in INSTALL_SCHEMES.values():
@@ -75,7 +75,7 @@ setup(
     author = 'Django Software Foundation',
     author_email = 'foundation@djangoproject.com',
     description = 'A high-level Python Web framework that encourages rapid development and clean, pragmatic design.',
-    download_url = 'https://www.djangoproject.com/m/releases/1.4/Django-1.4b1.tar.gz',
+    download_url = 'https://www.djangoproject.com/m/releases/1.4/Django-1.4c1.tar.gz',
     packages = packages,
     cmdclass = cmdclasses,
     data_files = data_files,
