@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from datetime import datetime
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models.fields import FieldDoesNotExist
+from django.db.models.fields import Field, FieldDoesNotExist
 from django.test import TestCase, skipIfDBFeature, skipUnlessDBFeature
 
 from .models import Article
@@ -508,6 +508,19 @@ class ModelTest(TestCase):
 
         s = set([a10, a11, a12])
         self.assertTrue(Article.objects.get(headline='Article 11') in s)
+        
+    def test_field_comparison(self):
+        # Field instances have a cmp function to allow the ORM to determine
+        # in which order fields are defined on a model. Plus, field should
+        # be comparable to non Field objects also. Make sure it works correctly
+        # since it overrides __cmp__ method.
+        f1 = Field()
+        f2 = Field(auto_created=True)
+        f3 = Field()
+        self.assertTrue(f2 < f1)
+        self.assertTrue(f1 < f3)
+        self.assertFalse(f1 == None)
+        self.assertFalse(f2 in (None, 1, ''))
 
     def test_extra_method_select_argument_with_dashes_and_values(self):
         # The 'select' argument to extra() supports names with dashes in
