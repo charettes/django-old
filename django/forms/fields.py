@@ -341,18 +341,7 @@ class BaseTemporalField(Field):
                 try:
                     return self.strptime(value, format)
                 except ValueError:
-                    if format.endswith('.%f'):
-                        # Compatibility with datetime in pythons < 2.6.
-                        # See: http://docs.python.org/library/datetime.html#strftime-and-strptime-behavior
-                        if value.count('.') != format.count('.'):
-                            continue
-                        try:
-                            datetime_str, usecs_str = value.rsplit('.', 1)
-                            usecs = int(usecs_str[:6].ljust(6, '0'))
-                            dt = datetime.datetime.strptime(datetime_str, format[:-3])
-                            return dt.replace(microsecond=usecs)
-                        except ValueError:
-                            continue
+                    continue
         raise ValidationError(self.error_messages['invalid'])
 
     def strptime(self, value, format):
@@ -577,8 +566,8 @@ class ImageField(FileField):
 
             # Since we're about to use the file again we have to reset the
             # file object if possible.
-            if hasattr(file, 'reset'):
-                file.reset()
+            if hasattr(file, 'seek') and callable(file.seek):
+                file.seek(0)
 
             # verify() is the only method that can spot a corrupt PNG,
             #  but it must be called immediately after the constructor
@@ -598,14 +587,11 @@ class ImageField(FileField):
 class URLField(CharField):
     default_error_messages = {
         'invalid': _(u'Enter a valid URL.'),
-        'invalid_link': _(u'This URL appears to be a broken link.'),
     }
 
-    def __init__(self, max_length=None, min_length=None, verify_exists=False,
-            validator_user_agent=validators.URL_VALIDATOR_USER_AGENT, *args, **kwargs):
-        super(URLField, self).__init__(max_length, min_length, *args,
-                                       **kwargs)
-        self.validators.append(validators.URLValidator(verify_exists=verify_exists, validator_user_agent=validator_user_agent))
+    def __init__(self, max_length=None, min_length=None, *args, **kwargs):
+        super(URLField, self).__init__(max_length, min_length, *args, **kwargs)
+        self.validators.append(validators.URLValidator())
 
     def to_python(self, value):
 

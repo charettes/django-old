@@ -1,4 +1,3 @@
-from __future__ import with_statement
 import os
 import re
 import urllib
@@ -12,33 +11,29 @@ from django.http import QueryDict
 from django.utils.encoding import force_unicode
 from django.utils.html import escape
 from django.test import TestCase
+from django.test.utils import override_settings
 
 from django.contrib.auth import SESSION_KEY, REDIRECT_FIELD_NAME
 from django.contrib.auth.forms import (AuthenticationForm, PasswordChangeForm,
                 SetPasswordForm, PasswordResetForm)
 
 
+@override_settings(
+    LANGUAGES=(
+        ('en', 'English'),
+    ),
+    LANGUAGE_CODE='en',
+    TEMPLATE_DIRS = (
+        os.path.join(os.path.dirname(__file__), 'templates'),
+    ),
+    USE_TZ=False,
+)
 class AuthViewsTestCase(TestCase):
     """
     Helper base class for all the follow test cases.
     """
     fixtures = ['authtestdata.json']
     urls = 'django.contrib.auth.tests.urls'
-
-    def setUp(self):
-        self.old_LANGUAGES = settings.LANGUAGES
-        self.old_LANGUAGE_CODE = settings.LANGUAGE_CODE
-        settings.LANGUAGES = (('en', 'English'),)
-        settings.LANGUAGE_CODE = 'en'
-        self.old_TEMPLATE_DIRS = settings.TEMPLATE_DIRS
-        settings.TEMPLATE_DIRS = (
-            os.path.join(os.path.dirname(__file__), 'templates'),
-        )
-
-    def tearDown(self):
-        settings.LANGUAGES = self.old_LANGUAGES
-        settings.LANGUAGE_CODE = self.old_LANGUAGE_CODE
-        settings.TEMPLATE_DIRS = self.old_TEMPLATE_DIRS
 
     def login(self, password='password'):
         response = self.client.post('/login/', {

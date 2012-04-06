@@ -3,7 +3,6 @@ import sys
 import os
 import re
 import mimetypes
-import warnings
 from copy import copy
 from urlparse import urlparse, urlsplit
 try:
@@ -350,7 +349,7 @@ class Client(RequestFactory):
         """
         Obtains the current session variables.
         """
-        if 'django.contrib.sessions.middleware.SessionMiddleware' in settings.MIDDLEWARE_CLASSES:
+        if 'django.contrib.sessions' in settings.INSTALLED_APPS:
             engine = import_module(settings.SESSION_ENGINE)
             cookie = self.cookies.get(settings.SESSION_COOKIE_NAME, None)
             if cookie:
@@ -411,17 +410,6 @@ class Client(RequestFactory):
             # backwards-compatibility implications.
             if response.context and len(response.context) == 1:
                 response.context = response.context[0]
-
-            # Provide a backwards-compatible (but pending deprecation) response.template
-            def _get_template(self):
-                warnings.warn("response.template is deprecated; use response.templates instead (which is always a list)",
-                              DeprecationWarning, stacklevel=2)
-                if not self.templates:
-                    return None
-                elif len(self.templates) == 1:
-                    return self.templates[0]
-                return self.templates
-            response.__class__.template = property(_get_template)
 
             # Update persistent cookie data.
             if response.cookies:
@@ -498,7 +486,7 @@ class Client(RequestFactory):
         """
         user = authenticate(**credentials)
         if user and user.is_active \
-                and 'django.contrib.sessions.middleware.SessionMiddleware' in settings.MIDDLEWARE_CLASSES:
+                and 'django.contrib.sessions' in settings.INSTALLED_APPS:
             engine = import_module(settings.SESSION_ENGINE)
 
             # Create a fake request to store login details.

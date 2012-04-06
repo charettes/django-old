@@ -3,7 +3,6 @@ A series of tests to establish that the command-line managment tools work as
 advertised - especially with regards to the handling of the DJANGO_SETTINGS_MODULE
 and default settings.py files.
 """
-from __future__ import with_statement
 
 import os
 import re
@@ -158,16 +157,6 @@ class AdminScriptTestCase(unittest.TestCase):
 
     def assertNoOutput(self, stream):
         "Utility assertion: assert that the given stream is empty"
-        # HACK: Under Windows, ignore warnings of the form:
-        # 'warning: Not loading directory '...\tests\regressiontests\locale': missing __init__.py'
-        # It has been impossible to filter them out using other means like:
-        # * Using warning.filterwarnings() (for the Python interpreter running the
-        #   tests) and/or
-        # * Using -Wignore:... (for the python interpreter spawned in self.run_test())
-        # Instead use a strategy copied from Mercurial's setup.py
-        if sys.platform == 'win32':
-            stream = [e for e in stream.splitlines()
-                if not e.startswith('warning: Not importing directory')]
         self.assertEqual(len(stream), 0, "Stream should be empty: actually contains '%s'" % stream)
 
     def assertOutput(self, stream, msg):
@@ -1534,3 +1523,32 @@ class StartProject(LiveServerTestCase, AdminScriptTestCase):
             with open(os.path.join(base_path, f)) as fh:
                 self.assertEqual(fh.read(),
                     '# some file for customtestproject test project')
+
+    def test_custom_project_template_context_variables(self):
+        "Make sure template context variables are rendered with proper values"
+        template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'project_template')
+        args = ['startproject', '--template', template_path, 'another_project', 'project_dir']
+        testproject_dir = os.path.join(test_dir, 'project_dir')
+        os.mkdir(testproject_dir)
+        out, err = self.run_django_admin(args)
+        self.addCleanup(shutil.rmtree, testproject_dir)
+        self.assertNoOutput(err)
+        test_manage_py = os.path.join(testproject_dir, 'manage.py')
+        with open(test_manage_py, 'r') as fp:
+            content = fp.read()
+            self.assertIn("project_name = 'another_project'", content)
+            self.assertIn("project_directory = '%s'" % testproject_dir, content)
+
+    def test_custom_project_destination_missing(self):
+        """
+        Make sure an exception is raised when the provided
+        destination directory doesn't exist
+        """
+        template_path = os.path.join(test_dir, 'admin_scripts', 'custom_templates', 'project_template')
+        args = ['startproject', '--template', template_path, 'yet_another_project', 'project_dir2']
+        testproject_dir = os.path.join(test_dir, 'project_dir2')
+        out, err = self.run_django_admin(args)
+        self.assertNoOutput(out)
+        self.assertOutput(err, "Destination directory '%s' does not exist, please create it first." % testproject_dir)
+        self.assertFalse(os.path.exists(testproject_dir))
+

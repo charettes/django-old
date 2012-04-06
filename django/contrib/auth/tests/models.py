@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.contrib.auth.models import (Group, User,
     SiteProfileNotAvailable, UserManager)
 
 
+@override_settings(USE_TZ=False)
 class ProfileTestCase(TestCase):
     fixtures = ['authtestdata.json']
 
@@ -38,6 +40,7 @@ class ProfileTestCase(TestCase):
         self.assertRaises(SiteProfileNotAvailable, user.get_profile)
 
 
+@override_settings(USE_TZ=False)
 class NaturalKeysTestCase(TestCase):
     fixtures = ['authtestdata.json']
 
@@ -51,6 +54,7 @@ class NaturalKeysTestCase(TestCase):
         self.assertEquals(Group.objects.get_by_natural_key('users'), users_group)
 
 
+@override_settings(USE_TZ=False)
 class LoadDataWithoutNaturalKeysTestCase(TestCase):
     fixtures = ['regular.json']
 
@@ -60,6 +64,7 @@ class LoadDataWithoutNaturalKeysTestCase(TestCase):
         self.assertEquals(group, user.groups.get())
 
 
+@override_settings(USE_TZ=False)
 class LoadDataWithNaturalKeysTestCase(TestCase):
     fixtures = ['natural.json']
 

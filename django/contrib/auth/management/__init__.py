@@ -31,8 +31,8 @@ def create_permissions(app, created_models, verbosity, **kwargs):
     searched_perms = list()
     # The codenames and ctypes that should exist.
     ctypes = set()
-    ctypes_for_models = ContentType.objects.get_for_models(*app_models)
-    for klass, ctype in ctypes_for_models.iteritems():
+    for klass in app_models:
+        ctype = ContentType.objects.get_for_model(klass)
         ctypes.add(ctype)
         for perm in _get_all_permissions(klass._meta):
             searched_perms.append((ctype, perm))
@@ -57,7 +57,7 @@ def create_permissions(app, created_models, verbosity, **kwargs):
             print "Adding permission '%s'" % obj
 
 
-def create_superuser(app, created_models, verbosity, **kwargs):
+def create_superuser(app, created_models, verbosity, db, **kwargs):
     from django.core.management import call_command
 
     if auth_app.User in created_models and kwargs.get('interactive', True):
@@ -70,7 +70,7 @@ def create_superuser(app, created_models, verbosity, **kwargs):
                 confirm = raw_input('Please enter either "yes" or "no": ')
                 continue
             if confirm == 'yes':
-                call_command("createsuperuser", interactive=True)
+                call_command("createsuperuser", interactive=True, database=db)
             break
 
 

@@ -1,8 +1,8 @@
-from __future__ import with_statement
-
 from datetime import datetime, timedelta
 import shutil
+import string
 import tempfile
+import warnings
 
 from django.conf import settings
 from django.contrib.sessions.backends.db import SessionStore as DatabaseSession
@@ -12,10 +12,11 @@ from django.contrib.sessions.backends.file import SessionStore as FileSession
 from django.contrib.sessions.backends.signed_cookies import SessionStore as CookieSession
 from django.contrib.sessions.models import Session
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.cache.backends.base import CacheKeyWarning
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
 from django.test import TestCase, RequestFactory
-from django.test.utils import override_settings
+from django.test.utils import override_settings, get_warnings_state, restore_warnings_state
 from django.utils import timezone
 from django.utils import unittest
 
@@ -25,7 +26,7 @@ class SessionTestsMixin(object):
     # class, which wouldn't work, and to allow different TestCase subclasses to
     # be used.
 
-    backend = None # subclasses must specify
+    backend = None  # subclasses must specify
 
     def setUp(self):
         self.session = self.backend()
@@ -119,13 +120,13 @@ class SessionTestsMixin(object):
         self.assertTrue(hasattr(i, '__iter__'))
         self.assertTrue(self.session.accessed)
         self.assertFalse(self.session.modified)
-        self.assertEqual(list(i), [('x',1)])
+        self.assertEqual(list(i), [('x', 1)])
 
     def test_clear(self):
         self.session['x'] = 1
         self.session.modified = False
         self.session.accessed = False
-        self.assertEqual(self.session.items(), [('x',1)])
+        self.assertEqual(self.session.items(), [('x', 1)])
         self.session.clear()
         self.assertEqual(self.session.items(), [])
         self.assertTrue(self.session.accessed)
@@ -280,13 +281,15 @@ class DatabaseSessionTests(SessionTestsMixin, TestCase):
 
         s = Session.objects.get(session_key=self.session.session_key)
         # Change it
-        Session.objects.save(s.session_key, {'y':2}, s.expire_date)
+        Session.objects.save(s.session_key, {'y': 2}, s.expire_date)
         # Clear cache, so that it will be retrieved from DB
         del self.session._session_cache
         self.assertEqual(self.session['y'], 2)
 
 
-DatabaseSessionWithTimeZoneTests = override_settings(USE_TZ=True)(DatabaseSessionTests)
+@override_settings(USE_TZ=True)
+class DatabaseSessionWithTimeZoneTests(DatabaseSessionTests):
+    pass
 
 
 class CacheDBSessionTests(SessionTestsMixin, TestCase):
@@ -298,8 +301,18 @@ class CacheDBSessionTests(SessionTestsMixin, TestCase):
         with self.assertNumQueries(0):
             self.assertTrue(self.session.exists(self.session.session_key))
 
+    def test_load_overlong_key(self):
+        warnings_state = get_warnings_state()
+        warnings.filterwarnings('ignore',
+                                category=CacheKeyWarning)
+        self.session._session_key = (string.ascii_letters + string.digits) * 20
+        self.assertEqual(self.session.load(), {})
+        restore_warnings_state(warnings_state)
 
-CacheDBSessionWithTimeZoneTests = override_settings(USE_TZ=True)(CacheDBSessionTests)
+
+@override_settings(USE_TZ=True)
+class CacheDBSessionWithTimeZoneTests(CacheDBSessionTests):
+    pass
 
 
 # Don't need DB flushing for these tests, so can use unittest.TestCase as base class
@@ -338,6 +351,14 @@ class FileSessionTests(SessionTestsMixin, unittest.TestCase):
 class CacheSessionTests(SessionTestsMixin, unittest.TestCase):
 
     backend = CacheSession
+
+    def test_load_overlong_key(self):
+        warnings_state = get_warnings_state()
+        warnings.filterwarnings('ignore',
+                                category=CacheKeyWarning)
+        self.session._session_key = (string.ascii_letters + string.digits) * 20
+        self.assertEqual(self.session.load(), {})
+        restore_warnings_state(warnings_state)
 
 
 class SessionMiddlewareTests(unittest.TestCase):
@@ -386,13 +407,11 @@ class SessionMiddlewareTests(unittest.TestCase):
 
         # Handle the response through the middleware
         response = middleware.process_response(request, response)
-        # If it isn't in the cookie, that's fine (Python 2.5)
-        if 'httponly' in settings.SESSION_COOKIE_NAME:
-            self.assertFalse(
-               response.cookies[settings.SESSION_COOKIE_NAME]['httponly'])
+        self.assertFalse(response.cookies[settings.SESSION_COOKIE_NAME]['httponly'])
 
         self.assertNotIn('httponly',
                          str(response.cookies[settings.SESSION_COOKIE_NAME]))
+
 
 class CookieSessionTests(SessionTestsMixin, TestCase):
 

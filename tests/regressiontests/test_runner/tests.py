@@ -3,15 +3,14 @@ Tests for django test runner
 """
 from __future__ import absolute_import
 
-import StringIO
 from optparse import make_option
-import warnings
 
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
+from django import db
 from django.test import simple
 from django.test.simple import DjangoTestSuiteRunner, get_tests
-from django.test.utils import get_warnings_state, restore_warnings_state
+from django.test.testcases import connections_support_transactions
 from django.utils import unittest
 from django.utils.importlib import import_module
 
@@ -21,35 +20,6 @@ from ..admin_scripts.tests import AdminScriptTestCase
 TEST_APP_OK = 'regressiontests.test_runner.valid_app.models'
 TEST_APP_ERROR = 'regressiontests.test_runner.invalid_app.models'
 
-
-class DjangoTestRunnerTests(unittest.TestCase):
-    def setUp(self):
-        self._warnings_state = get_warnings_state()
-        warnings.filterwarnings('ignore', category=DeprecationWarning,
-                                module='django.test.simple')
-
-    def tearDown(self):
-        restore_warnings_state(self._warnings_state)
-
-    def test_failfast(self):
-        class MockTestOne(unittest.TestCase):
-            def runTest(self):
-                assert False
-        class MockTestTwo(unittest.TestCase):
-            def runTest(self):
-                assert False
-
-        suite = unittest.TestSuite([MockTestOne(), MockTestTwo()])
-        mock_stream = StringIO.StringIO()
-        dtr = simple.DjangoTestRunner(verbosity=0, failfast=False, stream=mock_stream)
-        result = dtr.run(suite)
-        self.assertEqual(2, result.testsRun)
-        self.assertEqual(2, len(result.failures))
-
-        dtr = simple.DjangoTestRunner(verbosity=0, failfast=True, stream=mock_stream)
-        result = dtr.run(suite)
-        self.assertEqual(1, result.testsRun)
-        self.assertEqual(1, len(result.failures))
 
 class DependencyOrderingTests(unittest.TestCase):
 
@@ -217,7 +187,6 @@ class CustomTestRunnerOptionsTests(AdminScriptTestCase):
 class Ticket16885RegressionTests(unittest.TestCase):
     def test_ticket_16885(self):
         """Features are also confirmed on mirrored databases."""
-        from django import db
         old_db_connections = db.connections
         try:
             db.connections = db.ConnectionHandler({
@@ -262,3 +231,34 @@ class ModulesTestsPackages(unittest.TestCase):
         "Test for #12658 - Tests with ImportError's shouldn't fail silently"
         module = import_module(TEST_APP_ERROR)
         self.assertRaises(ImportError, get_tests, module)
+
+
+class Sqlite3InMemoryTestDbs(unittest.TestCase):
+
+    @unittest.skipUnless(all(db.connections[conn].vendor == 'sqlite' for conn in db.connections),
+                         "This is a sqlite-specific issue")
+    def test_transaction_support(self):
+        """Ticket #16329: sqlite3 in-memory test databases"""
+        old_db_connections = db.connections
+        for option in ('NAME', 'TEST_NAME'):
+            try:
+                db.connections = db.ConnectionHandler({
+                    'default': {
+                        'ENGINE': 'django.db.backends.sqlite3',
+                        option: ':memory:',
+                    },
+                    'other': {
+                        'ENGINE': 'django.db.backends.sqlite3',
+                        option: ':memory:',
+                    },
+                })
+                other = db.connections['other']
+                self.assertIsNone(other.features.supports_transactions)
+                DjangoTestSuiteRunner(verbosity=0).setup_databases()
+                msg = "DATABASES setting '%s' option set to sqlite3's ':memory:' value shouldn't interfere with transaction support detection." % option
+                # Transaction support should be properly initialised for the 'other' DB
+                self.assertIsNotNone(other.features.supports_transactions, msg)
+                # And all the DBs should report that they support transactions
+                self.assertTrue(connections_support_transactions(), msg)
+            finally:
+                db.connections = old_db_connections

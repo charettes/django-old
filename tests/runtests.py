@@ -25,7 +25,7 @@ REGRESSION_TEST_DIR = os.path.join(RUNTESTS_DIR, REGRESSION_TESTS_DIR_NAME)
 TEMP_DIR = tempfile.mkdtemp(prefix='django_')
 os.environ['DJANGO_TEST_TEMP_DIR'] = TEMP_DIR
 
-REGRESSION_SUBDIRS_TO_SKIP = ['locale']
+REGRESSION_SUBDIRS_TO_SKIP = []
 
 ALWAYS_INSTALLED_APPS = [
     'django.contrib.contenttypes',
@@ -117,6 +117,7 @@ def setup(verbosity, test_labels):
     if geodjango(settings):
         from django.contrib.gis.tests import geo_apps
         test_modules.extend(geo_apps(runtests=True))
+        settings.INSTALLED_APPS.extend(['django.contrib.gis', 'django.contrib.sitemaps'])
 
     for module_dir, module_name in test_modules:
         module_label = '.'.join([module_dir, module_name])
@@ -151,7 +152,7 @@ def django_tests(verbosity, interactive, failfast, test_labels):
 
     # If GeoDjango is used, add it's tests that aren't a part of
     # an application (e.g., GEOS, GDAL, Distance objects).
-    if geodjango(settings):
+    if geodjango(settings) and (not test_labels or 'gis' in test_labels):
         from django.contrib.gis.tests import geodjango_suite
         extra_tests.append(geodjango_suite(apps=False))
 

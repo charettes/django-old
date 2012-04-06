@@ -215,7 +215,7 @@ model names.
 .. versionadded:: 1.2
 
 The :djadminopt:`--database` option can be used to specify the database
-onto which the data will be loaded.
+from which data will be dumped.
 
 .. django-admin-option:: --natural
 
@@ -483,25 +483,6 @@ several lines in language files.
 Use the ``--no-location`` option to not write '``#: filename:line``'
 comment lines in language files. Note that using this option makes it harder
 for technically skilled translators to understand each message's context.
-
-reset <appname appname ...>
----------------------------
-
-.. deprecated:: 1.3
-    This command has been deprecated. The ``flush`` can be used to delete
-    everything. You can also use ALTER TABLE or DROP TABLE statements manually.
-
-.. django-admin:: reset
-
-Executes the equivalent of ``sqlreset`` for the given app name(s).
-
-The :djadminopt:`--noinput` option may be provided to suppress all user
-prompts.
-
-.. versionadded:: 1.2
-
-The :djadminopt:`--database` option can be used to specify the alias
-of the database to reset.
 
 runfcgi [options]
 -----------------
@@ -874,22 +855,6 @@ Prints the CREATE INDEX SQL statements for the given app name(s).
 The :djadminopt:`--database` option can be used to specify the database for
 which to print the SQL.
 
-sqlreset <appname appname ...>
-------------------------------
-
-.. deprecated:: 1.3
-    This command has been deprecated. The ``sqlflush`` can be used to delete
-    everything. You can also use ALTER TABLE or DROP TABLE statements manually.
-
-.. django-admin:: sqlreset
-
-Prints the DROP TABLE SQL, then the CREATE TABLE SQL, for the given app name(s).
-
-.. versionadded:: 1.2
-
-The :djadminopt:`--database` option can be used to specify the database for
-which to print the SQL.
-
 sqlsequencereset <appname appname ...>
 --------------------------------------
 
@@ -1198,10 +1163,9 @@ changed immediately. If you do not supply a user, the command will attempt to
 change the password whose username matches the current user.
 
 .. versionadded:: 1.4
-.. django-admin-option:: --database
 
-The ``--database`` option can be used to specify the database to query for the
-user. If it is not supplied the ``default`` database will be used.
+Use the ``--database`` option to specify the database to query for the user. If
+it's not supplied, Django will use the ``default`` database.
 
 Example usage::
 
@@ -1234,10 +1198,9 @@ line. If either of those is not supplied, ``createsuperuser`` will prompt for
 it when running interactively.
 
 .. versionadded:: 1.4
-.. django-admin-option:: --database
 
-The ``--database`` option can be used to specify the database into which the 
-superuser object will be saved.
+Use the ``--database`` option to specify the database into which the superuser
+object will be saved.
 
 ``django.contrib.gis``
 ----------------------
