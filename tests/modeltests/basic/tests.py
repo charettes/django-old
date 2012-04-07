@@ -510,11 +510,14 @@ class ModelTest(TestCase):
         s = set([a10, a11, a12])
         self.assertTrue(Article.objects.get(headline='Article 11') in s)
         
-    def test_field_comparison(self):
-        # Field instances have a cmp function to allow the ORM to determine
-        # in which order fields are defined on a model. Plus, field should
-        # be comparable to non Field objects also. Make sure it works correctly
-        # since it overrides __cmp__ method.
+    def test_field_ordering(self):
+        """
+        Field instances have a `__lt__` comparison function to define an
+        ordering based on their creation. Prior to #17851 this ordering
+        comparison relied on the now unsupported `__cmp__` and was assuming
+        compared objects were both Field instances raising `AttributeError`
+        when it should have returned `NotImplemented`.
+        """
         f1 = Field()
         f2 = Field(auto_created=True)
         f3 = Field()
