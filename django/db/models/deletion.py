@@ -149,7 +149,6 @@ class Collector(object):
         """
         new_objs = self.add(objs, source, nullable,
                             reverse_dependency=reverse_dependency)
-
         if not new_objs:
             return
 
