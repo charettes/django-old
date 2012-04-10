@@ -271,7 +271,7 @@ class DeletionSignalsTest(TestCase):
                BarFile, BarFileProxy1, BarFileProxy1Proxy, BarFileProxy2)
     
     def setUp(self):
-        self.clear_senders()
+        self.clear_received_senders()
         for sender in self.senders:
             models.signals.pre_delete.connect(self.pre_delete_receiver, sender)
             models.signals.post_delete.connect(self.post_delete_receiver, sender)
@@ -281,7 +281,7 @@ class DeletionSignalsTest(TestCase):
             models.signals.pre_delete.disconnect(self.pre_delete_receiver, sender)
             models.signals.post_delete.disconnect(self.post_delete_receiver, sender)
       
-    def clear_senders(self):
+    def clear_received_senders(self):
         self.pre_delete_senders = []
         self.post_delete_senders = []
             
@@ -306,13 +306,13 @@ class DeletionSignalsTest(TestCase):
         self.assertEqual(self.pre_delete_senders, expected_senders)
         self.assertEqual(self.post_delete_senders, expected_senders)
         
-        self.clear_senders()
+        self.clear_received_senders()
         
         Image.objects.create().delete()
         self.assertEqual(self.pre_delete_senders, expected_senders)
         self.assertEqual(self.post_delete_senders, expected_senders)
         
-        self.clear_senders()
+        self.clear_received_senders()
         
         Photo.objects.create().delete()
         self.assertEqual(self.pre_delete_senders, expected_senders)
@@ -331,19 +331,19 @@ class DeletionSignalsTest(TestCase):
         self.assertEqual(self.pre_delete_senders, expected_senders)
         self.assertEqual(self.post_delete_senders, expected_senders)
         
-        self.clear_senders()
+        self.clear_received_senders()
         
         BarFileProxy1.objects.create().delete()
         self.assertEqual(self.pre_delete_senders, expected_senders)
         self.assertEqual(self.post_delete_senders, expected_senders)
         
-        self.clear_senders()
+        self.clear_received_senders()
         
         BarFileProxy2.objects.create().delete()
         self.assertEqual(self.pre_delete_senders, expected_senders)
         self.assertEqual(self.post_delete_senders, expected_senders)
         
-        self.clear_senders()
+        self.clear_received_senders()
         
         BarFileProxy1Proxy.objects.create().delete()
         self.assertEqual(self.pre_delete_senders, expected_senders)
