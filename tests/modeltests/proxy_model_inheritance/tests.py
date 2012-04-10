@@ -42,13 +42,14 @@ class ProxyModelInheritanceTests(TransactionTestCase):
         self.assertEqual(NiceModel.objects.all().count(), 0)
         self.assertEqual(ProxyModel.objects.all().count(), 0)
 
+
 class MultiTableInheritanceProxyTest(TestCase):
 
     def test_model_subclass_proxy(self):
         """
-        Deleting an instance of a model proxing a multi-table inherited subclass
-        might not cascade delete down the whole inheritance chain while doing it
-        on the proxied concrete class works (as described in #18083).
+        Deleting an instance of a model proxying a multi-table inherited
+        subclass should cascade delete down the whole inheritance chain (see
+        #18083).
         """
         instance = ConcreteModelSubclassProxy.objects.create()
         instance.delete()
