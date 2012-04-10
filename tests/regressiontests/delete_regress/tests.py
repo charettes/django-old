@@ -3,12 +3,13 @@ from __future__ import absolute_import
 import datetime
 
 from django.conf import settings
-from django.db import backend, transaction, DEFAULT_DB_ALIAS
+from django.db import backend, models, transaction, DEFAULT_DB_ALIAS
 from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
 
 from .models import (Book, Award, AwardNote, Person, Child, Toy, PlayedWith,
     PlayedWithNote, Email, Researcher, Food, Eaten, Policy, Version, Location,
-    Item, Image, File, Photo, FooFile, FooImage, FooPhoto, FooFileProxy)
+    Item, Image, File, Photo, FooFile, FooImage, FooPhoto, FooFileProxy,
+    BarFile, BarFileProxy1, BarFileProxy1Proxy, BarFileProxy2)
 
 
 # Can't run this test under SQLite, because you can't
@@ -258,3 +259,92 @@ class ProxyDeleteTest(TestCase):
         Image.objects.all().delete()
 
         self.assertEqual(len(FooFileProxy.objects.all()), 0)
+
+class DeletionSignalsTest(TestCase):
+    """
+    Deletion signals should be sent correctly in inheritance scenarios 
+    involving proxies (as described in #18094).
+    
+    """
+    
+    senders = (File, Image, Photo,
+               BarFile, BarFileProxy1, BarFileProxy1Proxy, BarFileProxy2)
+    
+    def setUp(self):
+        self.clear_senders()
+        for sender in self.senders:
+            models.signals.pre_delete.connect(self.pre_delete_receiver, sender)
+            models.signals.post_delete.connect(self.post_delete_receiver, sender)
+        
+    def tearDown(self):
+        for sender in self.senders:
+            models.signals.pre_delete.disconnect(self.pre_delete_receiver, sender)
+            models.signals.post_delete.disconnect(self.post_delete_receiver, sender)
+      
+    def clear_senders(self):
+        self.pre_delete_senders = []
+        self.post_delete_senders = []
+            
+    def pre_delete_receiver(self, sender, **kwargs):
+        self.pre_delete_senders.append(sender)
+        
+    def post_delete_receiver(self, sender, **kwargs):
+        self.post_delete_senders.append(sender)
+        
+    def test_simple_proxy_deletion(self):
+        """
+        Triggering deletion from a concrete model instance should send the same
+        signals as an instance of a proxy of this model. Signals should be
+        orderly sent for all proxies of the deleted concrete model (based on
+        their inheritance depth and declaration order) and finally for the
+        concrete model itself.
+        
+        """
+        expected_senders = [Photo, Image, File]
+        
+        File.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)
+        
+        self.clear_senders()
+        
+        Image.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)
+        
+        self.clear_senders()
+        
+        Photo.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)
+
+    def test_multi_table_inheritance_proxy_deletion(self):
+        """
+        In a multi-table inheritance scenario, deletion signals should also be
+        orderly sent for all proxies of concrete model involved in the deletion.
+        
+        """
+        expected_senders = [BarFileProxy1Proxy, BarFileProxy1, BarFileProxy2,
+                            BarFile, Photo, Image, File]
+    
+        BarFile.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)
+        
+        self.clear_senders()
+        
+        BarFileProxy1.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)
+        
+        self.clear_senders()
+        
+        BarFileProxy2.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)
+        
+        self.clear_senders()
+        
+        BarFileProxy1Proxy.objects.create().delete()
+        self.assertEqual(self.pre_delete_senders, expected_senders)
+        self.assertEqual(self.post_delete_senders, expected_senders)

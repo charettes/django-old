@@ -68,7 +68,7 @@ class Item(models.Model):
     version = models.ForeignKey(Version)
     location = models.ForeignKey(Location, blank=True, null=True)
 
-# Models for #16128
+# Models for #16128 and #18094
 
 class File(models.Model):
     pass
@@ -93,3 +93,19 @@ class FooPhoto(models.Model):
 class FooFileProxy(FooFile):
     class Meta:
         proxy = True
+        
+class BarFile(File):
+    pass
+
+class BarFileProxy1(BarFile):
+    class Meta:
+        proxy = True
+        
+class BarFileProxy1Proxy(BarFileProxy1):
+    class Meta:
+        proxy = True
+        
+class BarFileProxy2(BarFile):
+    class Meta:
+        proxy = True
+
