@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import datetime
 
 from django.conf import settings
-from django.db import backend, transaction, DEFAULT_DB_ALIAS
+from django.db import backend, models, transaction, DEFAULT_DB_ALIAS
 from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
 
 from .models import (Book, Award, AwardNote, Person, Child, Toy, PlayedWith,
@@ -258,3 +258,52 @@ class ProxyDeleteTest(TestCase):
         Image.objects.all().delete()
 
         self.assertEqual(len(FooFileProxy.objects.all()), 0)
+
+
+class DeletionSignalsTest(TestCase):
+
+    senders = (FooFile, FooFileProxy,)
+
+    def setUp(self):
+        self.clear_received_senders()
+        for sender in self.senders:
+            models.signals.pre_delete.connect(self.pre_delete_receiver, sender)
+            models.signals.post_delete.connect(self.post_delete_receiver, sender)
+
+    def tearDown(self):
+        for sender in self.senders:
+            models.signals.pre_delete.disconnect(self.pre_delete_receiver, sender)
+            models.signals.post_delete.disconnect(self.post_delete_receiver, sender)
+
+    def clear_received_senders(self):
+        self.pre_delete_senders = []
+        self.post_delete_senders = []
+
+    def pre_delete_receiver(self, sender, **kwargs):
+        self.pre_delete_senders.append(sender)
+
+    def post_delete_receiver(self, sender, **kwargs):
+        self.post_delete_senders.append(sender)
+
+    def test_delete_deferred_model(self):
+        """
+        Model with deferred fields are actually proxy models under the hood.
+        Make sure deletion signals are correctly sent when fields are deferred
+        on a concrete model and on a proxy.
+
+        Refs #18100
+        """
+        my_file = File.objects.create()
+
+        obj = FooFile.objects.create(my_file=my_file)
+        FooFile.objects.only('id').get(id=obj.id).delete()
+        self.assertEqual(self.pre_delete_senders, [FooFile])
+        self.assertEqual(self.post_delete_senders, [FooFile])
+
+        self.clear_received_senders()
+
+        obj = FooFileProxy.objects.create(my_file=my_file)
+        FooFileProxy.objects.only('id').get(id=obj.id).delete()
+        self.assertEqual(self.pre_delete_senders, [FooFileProxy])
+        self.assertEqual(self.post_delete_senders, [FooFileProxy])
+
