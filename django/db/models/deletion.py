@@ -200,6 +200,10 @@ class Collector(object):
 
     def instances_with_model(self):
         for model, instances in self.data.iteritems():
+            if model._deferred:
+                # If the model has deferred fields we make sure to use the
+                # underlying model class to dispatch correct signals #18100.
+                model = model._meta.proxy_for_model
             for obj in instances:
                 yield model, obj
 
